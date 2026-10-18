@@ -68,7 +68,7 @@ From `logs/performance_comparison.log`:
 
 - **The `<unk>` row is never trained.** No training sentence contains an OOV word, so row 0 gets no gradient. The probe confirms it is bit-identical before and after training.
 - **OOV words push every pair toward cosine 1, whatever the label.** All OOV words share one `<unk>` vector, so the more of a sentence is OOV, the more its mean-pooled embedding becomes that one vector. When both sentences are fully OOV, they pool to the identical vector, and FULL-NEG and FULL-POS both score exactly 1.0. NEG-2 climbing from −0.33 to 0.86 is the same effect. Heavily-OOV pairs drift toward 1 regardless of label, so POS-3's 0.97 reflects the shared `<unk>` vector, not understanding.
-- **OOV words invert the ranking.** NEG-2, a different-cause pair, scores 0.856, above two same-cause pairs: POS-0 (0.740) and POS-2 (0.793). A retrieval system ranking by this score would put the wrong root cause above two correct ones, purely because of vocabulary coverage.
+- **OOV words invert the ranking.** NEG-2, a different-cause pair, scores 0.856, above three same-cause pairs: POS-0 (0.740), POS-1 (0.841) and POS-2 (0.793). A retrieval system ranking by this score would put the wrong root cause above three correct ones, purely because of vocabulary coverage.
 - **The baseline drops to 0 instead,** because the bag-of-words vector discards OOV words.
 
 This is the gap pretraining fills. Real SBERT starts from BERT's subword vocabulary and pretrained representations, so an unseen word still decomposes into pieces that carry meaning. This toy model has neither, so anything outside its 12 training pairs is untouched random initialization.
