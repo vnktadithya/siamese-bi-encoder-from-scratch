@@ -1,8 +1,13 @@
+<div align="center">
+
 # Siamese Bi-Encoder from Scratch
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+
+</div>
+
 
 A toy version of the Sentence-BERT siamese setup ([Reimers & Gurevych, 2019](https://arxiv.org/abs/1908.10084)), built to see what the training objective does to an embedding space with nothing pretrained underneath it. One encoder, a trainable embedding table with mean pooling, embeds both sentences of a pair with shared weights. The two sentences only interact after pooling, through `cosine(u, v)`. Training uses SBERT's regression objective: MSE between `cosine(u, v)` and a 0/1 label for "same root cause".
 
