@@ -1,8 +1,12 @@
 # Siamese Bi-Encoder from Scratch
 
-A toy version of the Sentence-BERT siamese setup (Reimers & Gurevych, 2019), built to see what the training objective does to an embedding space with nothing pretrained underneath it. One encoder, a trainable embedding table with mean pooling, embeds both sentences of a pair with shared weights. The two sentences only interact after pooling, through `cosine(u, v)`. Training uses SBERT's regression objective: MSE between `cosine(u, v)` and a 0/1 label for "same root cause".
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 
-The sentences are root-cause descriptions of real bugs, taken from the RCA dataset used in my QLoRA fine-tuning study.
+A toy version of the Sentence-BERT siamese setup ([Reimers & Gurevych, 2019](https://arxiv.org/abs/1908.10084)), built to see what the training objective does to an embedding space with nothing pretrained underneath it. One encoder, a trainable embedding table with mean pooling, embeds both sentences of a pair with shared weights. The two sentences only interact after pooling, through `cosine(u, v)`. Training uses SBERT's regression objective: MSE between `cosine(u, v)` and a 0/1 label for "same root cause".
+
+The sentences are root-cause descriptions of real bugs, written from the RCA dataset used in my [QLoRA fine-tuning study](https://github.com/vnktadithya/rca-lora-scaling-study).
 
 ## How it works
 
@@ -23,7 +27,9 @@ The pairs cross lexical overlap with the label, so word overlap alone can't solv
 | C | none | same cause (1.0) | bag-of-words scores these exactly 0 |
 | D | low | different cause (0.0) | the easy negative |
 
-There are 12 training pairs (3 per category) and 4 test pairs (1 per category). Test pairs rephrase causes that appear in training, using only training vocabulary. They test paraphrase robustness within known causes, **not** generalization to unseen causes. Category C pairs were written by hand. The rest come from `example_index` rows of the RCA dataset (the `idx N` comments in `pairs.py`), which were selected with `group_by_error_code.py`.
+There are 12 training pairs (3 per category) and 4 test pairs (1 per category). Test pairs rephrase causes that appear in training, using only training vocabulary. They test paraphrase robustness within known causes, **not** generalization to unseen causes.
+
+Category C pairs were written by hand. The other sentences are short rewrites of ground-truth root causes from the RCA dataset, not verbatim copies. The `idx N` comments in `pairs.py` give each source row's `example_index`, and the rows were selected with `group_by_error_code.py`.
 
 ## Results
 
@@ -56,7 +62,8 @@ From `logs/performance_comparison.log`:
 | FULL-POS | 1.0 | 5/5, 5/5 | 0.0000 | 1.0000 |
 
 - **The `<unk>` row is never trained.** No training sentence contains an OOV word, so row 0 gets no gradient. The probe confirms it is bit-identical before and after training.
-- **OOV words push every pair toward cosine 1, whatever the label.** All OOV words share one `<unk>` vector, so the more of a sentence is OOV, the more its mean-pooled embedding becomes that one vector. When both sentences are fully OOV, they pool to the identical vector, and FULL-NEG and FULL-POS both score exactly 1.0. NEG-2 climbing from −0.33 to 0.86 is the same effect. So POS-3's 0.97 is not a success. It is what any heavily-OOV pair would score.
+- **OOV words push every pair toward cosine 1, whatever the label.** All OOV words share one `<unk>` vector, so the more of a sentence is OOV, the more its mean-pooled embedding becomes that one vector. When both sentences are fully OOV, they pool to the identical vector, and FULL-NEG and FULL-POS both score exactly 1.0. NEG-2 climbing from −0.33 to 0.86 is the same effect. Heavily-OOV pairs drift toward 1 regardless of label, so POS-3's 0.97 reflects the shared `<unk>` vector, not understanding.
+- **OOV words invert the ranking.** NEG-2, a different-cause pair, scores 0.856, above two same-cause pairs: POS-0 (0.740) and POS-2 (0.793). A retrieval system ranking by this score would put the wrong root cause above two correct ones, purely because of vocabulary coverage.
 - **The baseline drops to 0 instead,** because the bag-of-words vector discards OOV words.
 
 This is the gap pretraining fills. Real SBERT starts from BERT's subword vocabulary and pretrained representations, so an unseen word still decomposes into pieces that carry meaning. This toy model has neither, so anything outside its 12 training pairs is untouched random initialization.
@@ -83,18 +90,23 @@ This is the gap pretraining fills. Real SBERT starts from BERT's subword vocabul
 
 ## Usage
 
+Requires Python 3.10 or newer
+
 ```bash
 pip install -r requirements.txt
 
-python sanity_checks.py            # run first
+python sanity_checks.py            
 python performance_comparison.py   # writes logs/performance_comparison.log
 python oov_probe.py                # writes logs/oov_probe.log
 ```
 
-`group_by_error_code.py` needs the RCA model-output JSONL, which is not included in this repo:
+The logs in `logs/` were produced on Windows, on CPU, with the versions pinned in `requirements.txt`. PyTorch does not guarantee identical random initialization across versions or platforms, so other setups may give slightly different numbers.
+
+`group_by_error_code.py` reads the model-output file from the [RCA study repo](https://github.com/vnktadithya/rca-lora-scaling-study/blob/main/logs/ft20_model_outputs.jsonl). It is the exact file the pairs were selected from:
 
 ```bash
-python group_by_error_code.py path/to/ft20_model_outputs.jsonl --min-size 2
+curl -LO https://raw.githubusercontent.com/vnktadithya/rca-lora-scaling-study/main/logs/ft20_model_outputs.jsonl
+python group_by_error_code.py ft20_model_outputs.jsonl --min-size 2
 ```
 
 ## Limitations
